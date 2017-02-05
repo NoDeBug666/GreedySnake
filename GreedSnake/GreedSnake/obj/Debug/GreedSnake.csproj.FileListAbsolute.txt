@@ -4,3 +4,9 @@ c:\users\silent\documents\visual studio 2015\Projects\GreedSnake\GreedSnake\bin\
 c:\users\silent\documents\visual studio 2015\Projects\GreedSnake\GreedSnake\obj\Debug\GreedSnake.csprojResolveAssemblyReference.cache
 c:\users\silent\documents\visual studio 2015\Projects\GreedSnake\GreedSnake\obj\Debug\GreedSnake.exe
 c:\users\silent\documents\visual studio 2015\Projects\GreedSnake\GreedSnake\obj\Debug\GreedSnake.pdb
+C:\Users\user\Documents\Visual Studio 2015\Projects\GreedySnake\GreedSnake\GreedSnake\bin\Debug\GreedSnake.exe.config
+C:\Users\user\Documents\Visual Studio 2015\Projects\GreedySnake\GreedSnake\GreedSnake\obj\Debug\GreedSnake.exe
+C:\Users\user\Documents\Visual Studio 2015\Projects\GreedySnake\GreedSnake\GreedSnake\obj\Debug\GreedSnake.pdb
+C:\Users\user\Documents\Visual Studio 2015\Projects\GreedySnake\GreedSnake\GreedSnake\bin\Debug\GreedSnake.exe
+C:\Users\user\Documents\Visual Studio 2015\Projects\GreedySnake\GreedSnake\GreedSnake\bin\Debug\GreedSnake.pdb
+C:\Users\user\Documents\Visual Studio 2015\Projects\GreedySnake\GreedSnake\GreedSnake\obj\Debug\GreedSnake.csprojResolveAssemblyReference.cache
