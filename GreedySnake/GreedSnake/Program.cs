@@ -1,6 +1,6 @@
 ﻿//#define DEBUG
 #define GameDEBUG
-#define TimeEchox
+//#define TimeEchox
 using System;
 using System.Collections;
 using System.Collections.Generic;
@@ -16,25 +16,35 @@ namespace GreedSnake
 
         static void Main(string[] args)
         {
+            //初始化參數
             Initialization();
-#if DEBUG || GameDEBUG
-            Debug_ShowEmptyLayout();
-            
-            SnakeBodyAdd(2, Direct.Right);
-            BoundSpawn(50);
-            MapAnalyze(MapAnalyzeMode.Fix);
-            SpawnBugHoleAction(); SpawnBugHoleAction();
-            Clock = new Thread(GameMainCheckProcedure);
-            GameClock += GameTrigger;
+            //產生空白遊戲場景
+            ShowEmptyLayout();
+
+            //生成100個障礙物
+            Point Middle = new Point(param.LayoutSize.Width / 2, param.LayoutSize.Height / 2);
+            Rectangle ClearArea = new Rectangle(Middle.X-2,Middle.Y-2, 5, 5);
+            BoundSpawn(ClearArea, 100);
+            //洞洞分析演算法
+            FillHole();
+            //初始化貪吃蛆的身體
+            SnakeInitialization(Middle, Direct.Top, 30);
             param.Direct = Direct.Down;
-            
             DrawSnake();
+            //產生兩對黑洞
+            SpawnBugHoleAction();
+            SpawnBugHoleAction();
+            //初始化遊戲畫面更新用執行序,每間隔一定時間會觸發GameClock事件
+            Clock = new Thread(GameMainCheckProcedure);
+            //GameTrigger用來產生新的食物(星星),管理貪吃蛆前進和咬到自己
+            GameClock += GameTrigger;
+
+            //Clock開始運作,遊戲開始
             Clock.Start();
-#endif
+
+            //主執行序進入一個無限迴圈,負責接受鍵盤的輸入
             while (true)
                 KeyboardHandle();
-
-            Console.ReadKey();
         }
         /// <summary>
         /// 在遊戲剛開始時執行此函式,針對遊戲參數初始化
@@ -43,15 +53,14 @@ namespace GreedSnake
         {
             Console.Title = "貪吃蛆";
             Console.CursorVisible = true;
-            
+
             param = new Param(
-                (Console.WindowHeight)-1,
-                (Console.WindowWidth/2)-1,
+                (Console.WindowHeight) - 1,
+                (Console.WindowWidth / 2) - 1,
                 3,
                 300,
                 10
                 );
-            Clock = new Thread(GameMainCheckProcedure);
         }
 
         #region Main Menu
@@ -82,17 +91,17 @@ namespace GreedSnake
                 TimeSpan ts = DateTime.Now - Echo;
                 System.Diagnostics.Debug.WriteLine("Main Game Thread Sleep {0}ms", ts.TotalMilliseconds);
 #endif
-                SecondPeriod = (SecondPeriod + 1) % ( Param.Fixed_FPS);
+                SecondPeriod = (SecondPeriod + 1) % (Param.Fixed_FPS);
                 //Run
                 if (GameClock != null)
-                    GameClock(null,new EventArgs());
-                SetCursorPosition(0,param.GameHeight);
-            }   
+                    GameClock(null, new EventArgs());
+                SetCursorPosition(0, param.GameHeight);
+            }
         }
         private static EventHandler<EventArgs> GameClock;
         private static bool Pause;
-        
-        static void GameTrigger(object sender,EventArgs e)
+
+        static void GameTrigger(object sender, EventArgs e)
         {
             if (SecondPeriod == 0 && !Pause)
             {
@@ -111,7 +120,7 @@ namespace GreedSnake
                 RedrawProcedure.Start();
             }*/
             RefreshUI();
-            
+
         }
 
         #endregion
@@ -130,7 +139,7 @@ namespace GreedSnake
 #endif
             lock (PrintLock)
             {
-                SetCursorPosition(0,param.GameHeight);
+                SetCursorPosition(0, param.GameHeight);
                 Console.Write(new string(' ', param.GameWidth));
                 if (Pause)
                 {
@@ -141,11 +150,11 @@ namespace GreedSnake
             lock (PrintLock)
             {
                 DateTime now = DateTime.Now;
-                if(lastCheck != null)
+                if (lastCheck != null)
                 {
                     TimeSpan ts = now - lastCheck;
                     SetCursorPosition(22, param.GameHeight);
-                    Console.Write("LF {1}.{0,3}   ", ts.Milliseconds,ts.Seconds);
+                    // Console.Write("LF {1}.{0,3}   ", ts.Milliseconds,ts.Seconds);
                 }
                 lastCheck = now;
             }
@@ -165,39 +174,76 @@ namespace GreedSnake
 
                     //Analyze Dead Cornor
                     int UnimpededBlock = 0;
-                    for(int b = 0;b < 4;b++)
+                    for (int b = 0; b < 4; b++)
                     {
                         Point np = Param.DirectionCond[b] + p;
                         if (MovingAvailable(np, false, true))
                             UnimpededBlock++;
                     }
-                    if(UnimpededBlock <= 1 && !param.Bound[p.X,p.Y])
+                    if (UnimpededBlock <= 1 && !param.Bound[p.X, p.Y])
                     {
-                        //HighLightLayout(p);
-                        if (mode == MapAnalyzeMode.Fix)
-                        {
-#if DEBUG
-                            BoundSpawn(p,ConsoleColor.Red);
-#else
-                            BoundSpawn(p);
-#endif
-                            j -= j <= 1 ? 0 : 2;
-                            i -= i <= 1 ? 0 : 2;
-                        }
-                        else if (mode == MapAnalyzeMode.ShowDialog)
-                            sb.AppendLine(String.Format("發現移動死角<{0},{1}>", p.X, p.Y));
-                        else if (mode == MapAnalyzeMode.ThrowError)
-                            throw new Exception(String.Format("發現移動死角<{0},{1}>", p.X, p.Y));
-                        
+                        BlockSpawn(p);
+                        j -= j <= 1 ? 0 : 2;
+                        i -= i <= 1 ? 0 : 2;
+
                     }
                 }
             }
 
             //Analyze Moving Available
-            
-            
-        }
 
+
+        }
+        static void FillHole()
+        {
+            //變數宣告
+            int Width = param.LayoutSize.Width;
+            int Height = param.LayoutSize.Height;
+            int[,] InDegree = new int[Width, Height];
+            Stack<Point> stack = new Stack<Point>();
+            //InDegree陣列初始化
+            for (int i = 0; i < Height; i++)
+                for (int j = 0; j < Width; j++)
+                {
+                    //每一個座標可以從上下左右四個方向進來
+                    InDegree[j, i] = 4;
+                    //如果在遊戲邊界四周,InDegree要扣1
+                    if (i == 0 || i == Height - 1)
+                        InDegree[j, i] -= 1;
+                    if (j == 0 || j == Width - 1)
+                        InDegree[j, i] -= 1;
+                }
+
+            //枚舉每個座標點,如果該座標點有障礙物,其四周的格子InDegee扣1
+            for (int i = 0; i < Height; i++)
+                for (int j = 0; j < Width; j++)
+                    if (!MovingAvailable(j, i, false, true))
+                    {
+                        //這個函式可以扣除Point座標四周的座標InDegree的值1
+                        //如果有產生InDegree等於1的坑洞,也會順便塞入stack內
+                        inDegreeDecrease(InDegree, new Point(j, i), 1, stack);
+                        //這個座標點有障礙物,不可通行,InDegree = 0
+                        InDegree[j, i] = 0;
+                    }
+            Stack<Point> temp = new Stack<Point>();
+            while (stack.Count > 0)
+            {
+                temp.Push(stack.Peek());
+                Point p = stack.Pop();
+                //在p座標放上障礙物,設定背景顏色紅色
+                BlockSpawn(p, ConsoleColor.Red);
+                inDegreeDecrease(InDegree, p, 1, stack);
+            }
+        }
+        static void show(int[,] ind)
+        {
+            for (int i = 0; i < param.LayoutSize.Height; i++)
+            {
+                for (int j = 0; j < param.LayoutSize.Width; j++)
+                    System.Diagnostics.Debug.Write(ind[j, i] + " ");
+                System.Diagnostics.Debug.WriteLine("");
+            }
+        }
         //MAC ACTION
         static Random r = new Random();
         static int NextPeriod = 10;
@@ -220,13 +266,15 @@ namespace GreedSnake
 
             
         }
+        //隨機生成食物星星
         static void SpawnRandomPac()
         {
             Point p;
             do
-                p = new Point(r.Next(0, param.GameWidth / 2), r.Next(0, param.GameHeight / 2));
+                p = new Point(r.Next(0, param.GameWidth), r.Next(0, param.GameHeight));
             while (!MovingAvailable(p, true,true));
             param.Foods.Add(p);
+            //繪製星星
             lock (PrintLock)
             {
                 SetLayoutPosition(p);
@@ -348,6 +396,10 @@ namespace GreedSnake
             param.Foods.Remove(FeedPosition);
 
         }
+        static bool MovingAvailable(int px,int py, bool CheckInstance = false, bool CheckBound = false)
+        {
+            return MovingAvailable(new Point(px, py), CheckInstance, CheckBound);
+        }
         static bool MovingAvailable(Point p,bool CheckInstance = false,bool CheckBound = false)
         {
             if (CheckInstance &&
@@ -361,6 +413,20 @@ namespace GreedSnake
             return !(p.X < 0 || p.Y < 0 || p.X >= param.LayoutSize.Width || p.Y >= param.LayoutSize.Height || (CheckBound && param.Bound[p.X, p.Y]));
         }
 
+        static void SnakeInitialization(Point HeadAt,Direct dir,int Length)
+        {
+            if (Length <= 0)
+                throw new Exception("蛆身長度必須大於0");
+            while(param.SnakeBody.Length>0)
+                param.SnakeBody.Pop();
+
+            Length -= 1;
+            param.SnakeBody.PushBack(HeadAt);
+            param.Direct = dir;
+
+            for (int i = 0; i < Length; i++)
+                SnakeBodyAdd(1, dir, false);
+        }
         static void SnakeBodyAdd(int BodyNum,Direct d,bool Redraw = false)
         {
             Point Tail = param.SnakeBody.GetBottom;
@@ -402,14 +468,14 @@ namespace GreedSnake
             Point begin, end;
             do
                 begin = new Point(r.Next(0, param.GameWidth), r.Next(0, param.GameHeight));
-            while (!MovingAvailable(begin, true, true));
+            while (!MovingAvailable(begin, true, true) || GetInDegree(begin)==0);
             do
                 end = new Point(r.Next(0, param.GameWidth), r.Next(0, param.GameHeight));
-            while (!MovingAvailable(end, true, true) || begin == end);
+            while (!MovingAvailable(end, true, true) || GetInDegree(end)==0 || begin == end);
 
             param.BugHoles.Add(begin);
             param.BugHoles.Add(end);
-
+            
             lock (PrintLock)
             {
                 Console.ForegroundColor = Param.BugHoleColor[colorIndex];
@@ -423,15 +489,47 @@ namespace GreedSnake
         }
 
         //Bound
-        static void BoundSpawn(int spawn = 1)
+        static void BoundSpawn(Rectangle ClearArea, int spawn = 1)
         {
             for (int i = 0; i < spawn; i++)
             {
                 Point p;
                 do
                     p = new Point(r.Next(0, param.GameWidth), r.Next(0, param.GameHeight));
-                while (!MovingAvailable(p, true));
+                while (!MovingAvailable(p, true) || ClearArea.IntersectionWith(p));
 
+                param.Bound[p.X, p.Y] = true;
+                //繪製障礙物
+                lock (PrintLock)
+                {
+                    SetLayoutPosition(p);
+                    Console.BackgroundColor = Param.BoundColor;
+                    Console.Write(Param.BoundStyle);
+                    Console.ResetColor();
+                }
+            }
+        }
+        static void BoundSpawnNoDeadRoad(int spawn = 1)
+        {
+            //建立連通陣列
+            int[,] InDegree = new int[param.LayoutSize.Width,param.LayoutSize.Height];
+            for (int i = 0; i < param.LayoutSize.Height; i++)
+                for (int j = 0; j < param.LayoutSize.Width; j++)
+                {
+                    InDegree[j, i] = 4;
+                    if (i == 0 || i == param.LayoutSize.Height - 1)
+                        InDegree[j, i] -= 1;
+                    if (j == 0 || j == param.LayoutSize.Width - 1)
+                        InDegree[j, i] -= 1;
+                }
+            for (int i = 0; i < spawn; i++)
+            {
+                Point p;
+                do
+                    p = new Point(r.Next(0, param.LayoutSize.Width), r.Next(0, param.LayoutSize.Height));
+                while (!MovingAvailable(p, true) || inDegreeTest(InDegree, p));
+
+                //inDegreeDecrease(InDegree, p);
                 param.Bound[p.X, p.Y] = true;
                 lock (PrintLock)
                 {
@@ -442,7 +540,36 @@ namespace GreedSnake
                 }
             }
         }
-        static void BoundSpawn(Point p)
+        static bool inDegreeTest(int[,] inDegree,Point p,int value = 2)
+        {
+            foreach(Point cond in Param.DirectionCond)
+            {
+                Point np = new Point(cond.X + p.X, cond.Y + p.Y);
+                if (np.X < 0 || np.Y < 0 || np.X >= param.LayoutSize.Width || np.Y >= param.LayoutSize.Height)
+                    continue;
+                if (inDegree[np.X, np.Y] == value)
+                    return true;
+            }
+            return false;
+        }
+        static void inDegreeDecrease(int[,] inDegree,Point p,int value ,Stack<Point> collect)
+        {
+            foreach (Point cond in Param.DirectionCond)
+            {
+                Point np = new Point(cond.X + p.X, cond.Y + p.Y);
+                
+                if (np.X < 0 || np.Y < 0 || np.X >= param.LayoutSize.Width || np.Y >= param.LayoutSize.Height)
+                    continue;
+                if(inDegree[np.X,np.Y]>0)
+                    inDegree[np.X, np.Y] -= 1;
+                if (inDegree[np.X, np.Y] == value && !param.Bound[np.X,np.Y])
+                {
+                    collect.Push(np);
+                }
+            }
+            
+        }
+        static void BlockSpawn(Point p)
         {
             param.Bound[p.X, p.Y] = true;
             lock (PrintLock)
@@ -453,7 +580,7 @@ namespace GreedSnake
                 Console.ResetColor();
             }
         }
-        static void BoundSpawn(Point p,ConsoleColor cc)
+        static void BlockSpawn(Point p,ConsoleColor cc)
         {
             param.Bound[p.X, p.Y] = true;
             lock (PrintLock)
@@ -463,6 +590,17 @@ namespace GreedSnake
                 Console.Write(Param.BoundStyle);
                 Console.ResetColor();
             }
+        }
+        static int GetInDegree(Point p)
+        {
+            int InDegree = 0;
+            for(int i = 0;i < 4; i++)
+            {
+                Point np = Param.DirectionCond[i] + p;
+                if (MovingAvailable(np,true,true))
+                    InDegree++;
+            }
+            return InDegree;
         }
 #endregion
         #region Keyboard Control
@@ -620,7 +758,7 @@ namespace GreedSnake
             int i = 0;
             while (i <= Param.OneSec/Param.Fixed_FPS*3)
             {
-                Thread.Sleep(Param.GameCheckSec/Param.Fixed_FPS);
+                Thread.Sleep(Param.OneSec/Param.Fixed_FPS);
                 if (param.SnakeBody.GetTop == ScreenCond)
                     return;
                 i++;
@@ -635,7 +773,7 @@ namespace GreedSnake
 
 
 #if DEBUG || GameDEBUG
-        static void Debug_ShowEmptyLayout()
+        static void ShowEmptyLayout()
         {
             Clear();
             BasicLayout();
@@ -648,6 +786,60 @@ namespace GreedSnake
                 Console.BackgroundColor = ConsoleColor.Yellow;
                 Console.Write(Param.EmptyStyle);
                 Console.ResetColor();
+            }
+        }
+        static void RedrawEveryThing(Point[] ps)
+        {
+            Console.ResetColor();
+            ShowEmptyLayout();
+            Console.ResetColor();
+            for (int i = 0; i < param.LayoutSize.Width; i++)
+                for(int j = 0;j < param.LayoutSize.Height;j++)
+                    if(param.Bound[i,j])
+                    {
+                        SetLayoutPosition(i, j);
+                        Console.BackgroundColor = Param.BoundColor;
+                        Console.Write(Param.BoundStyle);
+                    }
+            Console.ResetColor();
+            int k = 0;
+            foreach(var item in param.BugHoles)
+            {
+                SetLayoutPosition(item);
+                Console.ForegroundColor = Param.BugHoleColor[k++];
+                Console.Write(Param.BugHoleStyle);
+            }
+            foreach(var p in ps)
+            {
+                SetLayoutPosition(p);
+                Console.BackgroundColor = ConsoleColor.Red;
+                Console.Write(Param.BoundStyle);
+            }
+           
+            foreach(var item in param.Foods)
+            {
+                SetLayoutPosition(item);
+                Console.Write(Param.PacStyle);
+            }
+        }
+        static void NumUp(int[,] ind,Point[] ps)
+        {
+        
+            for(int i = 0;i < param.LayoutSize.Width;i++)
+                for(int j = 0;j < param.LayoutSize.Height;j++)
+                {
+                    Console.ResetColor();
+                    SetLayoutPosition(i, j);
+                    if (param.Bound[i, j])
+                        Console.BackgroundColor = Param.BoundColor;
+                    Console.Write(ind[i, j]);
+                }
+            foreach (var item in ps)
+            {
+                Console.ResetColor();
+                SetLayoutPosition(item);
+                Console.BackgroundColor = ConsoleColor.Red;
+                Console.Write(ind[item.X, item.Y]);
             }
         }
 #endif
@@ -821,6 +1013,32 @@ namespace GreedSnake
         }
 
         public Point(int X,int Y) { this.X = X; this.Y = Y; }
+    }
+    /// <summary>
+    /// 表示一個整數二維空間
+    /// </summary>
+    struct Rectangle
+    {
+        public Point Begin;
+        public int w;
+        public int h;
+        public bool IntersectionWith(Point p)
+        {
+            return p.X >= Begin.X && p.Y >= Begin.Y && p.X < Begin.X + w && p.Y < Begin.Y + h;
+        }
+
+        public Rectangle(int x,int y,int w,int h)
+        {
+            this.Begin = new Point(x, y);
+            this.w = w;
+            this.h = h;
+        }
+        public Rectangle(Point p,int w,int h)
+        {
+            this.Begin = p;
+            this.w = w;
+            this.h = h;
+        }
     }
     /// <summary>
     /// 表示一個大小
