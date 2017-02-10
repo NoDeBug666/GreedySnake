@@ -7,8 +7,8 @@
     <ProjectGuid>{4239C60E-F31D-4123-A37E-A559E40A4AD8}</ProjectGuid>
     <OutputType>Exe</OutputType>
     <AppDesignerFolder>Properties</AppDesignerFolder>
-    <RootNamespace>GreedSnake</RootNamespace>
-    <AssemblyName>GreedSnake</AssemblyName>
+    <RootNamespace>GreedySnake</RootNamespace>
+    <AssemblyName>GreedySnake</AssemblyName>
     <TargetFrameworkVersion>v4.5.2</TargetFrameworkVersion>
     <FileAlignment>512</FileAlignment>
     <AutoGenerateBindingRedirects>true</AutoGenerateBindingRedirects>
