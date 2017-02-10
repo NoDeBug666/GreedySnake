@@ -20,6 +20,8 @@ namespace GreedSnake
             public bool[,] Bound;
             public ListQueue<Point> SnakeBody;
             public List<Point> Foods;
+            //奇數偶數兩個一對洞
+            public List<Point> BugHoles;
             /// <summary>
             /// 幾毫秒對此遊戲來說是1秒
             /// </summary>
@@ -27,7 +29,7 @@ namespace GreedSnake
             /// <summary>
             /// 遊戲檢查時間,通常會影響到整個遊戲的運作,但不包含畫面的更新
             /// </summary>
-            public static int GameCheckSec = 700;
+            public static int GameCheckSec = 250;
 
             private object _directLock = new object();
             private Direct _Direct;
@@ -67,8 +69,10 @@ namespace GreedSnake
             public static char BoundStyle = '■';
             public static char EmptyStyle = '　';
             public static char PacStyle = '★';
+            public static char BugHoleStyle = 'Ｏ';
             public static ConsoleColor BoundColor = ConsoleColor.DarkYellow;
-            
+            public static ConsoleColor[] BugHoleColor = new ConsoleColor[] { ConsoleColor.Blue , ConsoleColor.Cyan,ConsoleColor.DarkBlue,ConsoleColor.DarkCyan };
+            public static ConsoleColor[] BugColor = new ConsoleColor[] { ConsoleColor.Green };
             public static int Trans = 2;
 
             public Param(
@@ -89,6 +93,7 @@ namespace GreedSnake
 
                 SnakeBody = new ListQueue<Point>(Max_Snake_Length);
                 Foods = new List<Point>();
+                BugHoles = new List<Point>();
                 SwitchDirect = Direct.Nono;
             }
         }
